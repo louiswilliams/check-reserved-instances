@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import csv
 import datetime
 import time
 import optparse
@@ -12,6 +13,9 @@ parser = optparse.OptionParser(description="Shows summary about 'Reserved' and '
 parser.add_option("--aws-access-key", type=str, default=None, help="AWS Access Key ID. Defaults to the value of the AWS_ACCESS_KEY_ID environment variable (if set)")
 parser.add_option("--aws-secret-key", type=str, default=None, help="AWS Secret Access Key. Defaults to the value of the AWS_SECRET_ACCESS_KEY environment variable (if set)")
 parser.add_option("--region", type=str, default="us-west-1", help="AWS Region name. Default is 'us-west-1'")
+parser.add_option("-r", "--ri-out", type=str, default="ri.csv", help="Reserved Instance CSV output file")
+parser.add_option("-o", "--od-out", type=str, default="od.csv", help="On Demand CSV output file")
+parser.add_option("-c", "--csv", action="store_true", dest="csv", help="Output CSV report")
 parser.add_option("-w", "--warn-time", type=int, default=30, help="Expire period for reserved instances in days. Default is '30 days'")
 args, _ = parser.parse_args()
 
@@ -44,30 +48,47 @@ unused_ri = dict((k, v) for k, v in diff.iteritems() if v > 0)
 
 unreserved_instances = dict((k,-v) for k, v in diff.iteritems() if v < 0)
 
-# Report
-print("Unused reserved instances:")
-for k, v in unused_ri.iteritems():
-    print("\t(%s)\t%s\t%s" %(v, k[0], k[1]))
-if not unused_ri:
-    print("\tNone")
-print("")
+if args.csv:
+    with open(args.ri_out, 'wb') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["instances", "type", "availability_zone"])
 
-print("Expiring soon (less than %sd) reserved instances:" % args.warn_time)
-for k, v in soon_expire_ri.iteritems():
-    print("\t%s\t%s\t%s\t%s" %(k, v[0], v[1], datetime.datetime.fromtimestamp(v[2]).strftime('%Y-%m-%d')))
-if not soon_expire_ri:
-    print("\tNone")
-print("")
+        for k, v in unused_ri.iteritems():
+            writer.writerow([v, k[0], k[1]])
 
-print("On-demand instances, which haven't got a reserved instance:")
-for k, v in unreserved_instances.iteritems():
-    print("\t(%s)\t%s\t%s" %(v, k[0], k[1]))
-if not unreserved_instances:
-    print("\tNone")
-print("")
+    with open(args.od_out, 'wb') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["instances", "type", "availability_zone"])
 
-print("Running on-demand instances:   %s" % sum(running_instances.values()))
-print("Reserved instances:            %s" % sum(reserved_instances.values()))
-print("")
+        for k, v in unreserved_instances.iteritems():
+            writer.writerow([v, k[0], k[1]])
+
+else:
+
+    # Report
+    print("Unused reserved instances:")
+    for k, v in unused_ri.iteritems():
+        print("\t(%s)\t%s\t%s" %(v, k[0], k[1]))
+    if not unused_ri:
+        print("\tNone")
+    print("")
+
+    print("Expiring soon (less than %sd) reserved instances:" % args.warn_time)
+    for k, v in soon_expire_ri.iteritems():
+        print("\t%s\t%s\t%s\t%s" %(k, v[0], v[1], datetime.datetime.fromtimestamp(v[2]).strftime('%Y-%m-%d')))
+    if not soon_expire_ri:
+        print("\tNone")
+    print("")
+
+    print("On-demand instances, which haven't got a reserved instance:")
+    for k, v in unreserved_instances.iteritems():
+        print("\t(%s)\t%s\t%s" %(v, k[0], k[1]))
+    if not unreserved_instances:
+        print("\tNone")
+    print("")
+
+    print("Running on-demand instances:   %s" % sum(running_instances.values()))
+    print("Reserved instances:            %s" % sum(reserved_instances.values()))
+    print("")
 
 
